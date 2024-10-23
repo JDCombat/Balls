@@ -1,0 +1,1 @@
+export type Color = "cornflowerblue" | "chartereuse" | "lightglodenrodyellow" | "dimgray" | "bisque" | "lightcoral"| "navyblue"
