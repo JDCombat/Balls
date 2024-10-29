@@ -4,7 +4,7 @@ export default class Grid{
     grid: Ball[][] =[]
 
     constructor(size:number){
-        this.grid = Array.from(Array(9), () => Array(size).fill(""))
+        this.grid = Array.from(Array(size), () => Array(size).fill(""))
     }
     render(){
         const ctx = document.querySelector("canvas")!.getContext("2d")!
