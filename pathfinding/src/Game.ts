@@ -37,22 +37,19 @@ export default class Game{
         const cellX = Math.floor(e.offsetX / this.size)
         const cellY = Math.floor(e.offsetY / this.size)
 
+        console.log(selected);
+        
 
         if(this.balls.find(e=>e.x==cellX && e.y==cellY)){
             if(selected){
                 selected.render(this.size)
-                selected = null
             }
             selected = this.balls.find(e=>e.x==cellX && e.y==cellY)!
             selected.enlarge(this.size)
-        }else{
-            if(!selected){
-                return
-            }
+        }
             // selected.clear(this.size)
             // selected.move(cellX, cellY)
             // selected.render(this.size)
-        }
 
 
 
