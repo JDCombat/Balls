@@ -70,7 +70,7 @@ export default class Game{
             this.playfield.grid[randY][randX] = ball
             this.balls.push(ball)
         }
-        console.table(this.playfield.grid);
+        console.log(this.playfield.grid);
         console.log(this.balls);
         
         
