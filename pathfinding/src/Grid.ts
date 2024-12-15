@@ -4,9 +4,12 @@ export default class Grid{
     grid: Ball[][] =[]
 
     constructor(size:number){
-        this.grid = Array.from(Array(size), () => Array(size).fill(""))
+        this.grid = Array.from(Array(size), () => Array(size).fill(undefined))
     }
-    render(){
+    /**
+     * A method for rendering the grid on the canvas
+     */
+    public render(){
         const ctx = document.querySelector("canvas")!.getContext("2d")!
         ctx.strokeStyle = "black"
         for(let i = 0; i < 576; i+=64){
