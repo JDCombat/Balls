@@ -9,6 +9,7 @@ export default class Ball{
     x: number
     y: number
     color: Color
+    large?: boolean
 
     constructor(x:number, y:number, color: Color){
         this.x = x
@@ -22,6 +23,10 @@ export default class Ball{
      */
     render(size:number){
         ctx.clearRect(this.x*size+2, this.y*size+2, size -4, size - 4)
+        if(this.large){
+            this.enlarge(size)
+            return
+        }
         ctx.beginPath()
         ctx.fillStyle = this.color
         ctx.arc(this.x*size + (size/2), this.y*size + (size / 2), size/2 - 8, 0, Math.PI * 2)

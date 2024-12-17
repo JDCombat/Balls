@@ -1,31 +1,35 @@
 import Ball from "./Ball";
 import { Color, randomizeColor } from "./Colors";
 import Grid from "./Grid";
+import { Point } from "./IPoint";
 
 /**
  * A variable containing currently selected ball
  */
 let selected: Ball | null
 
-interface Point {
-    x: number;
-    y: number;
-}
+
 
 export default class Game{
     public constructor(){}
 
     /**An array of existing balls */
-    balls: Ball[] = []
+    public balls: Ball[] = []
 
     /** Holds the canvas HTML element */
-    private canvas: HTMLCanvasElement = document.querySelector("canvas")!
+    readonly canvas: HTMLCanvasElement = document.querySelector("canvas")!
 
     /** Size of ball (in px) */
     private size: number = 64
 
     /** A playfield matrix */
     static playfield: Grid = new Grid(9)
+
+    private nextColors: Color[] = []
+
+    public score: number = 0
+
+    public bestScore: number = Number(localStorage.getItem("best")) ?? 0
 
 
     /**
@@ -65,80 +69,36 @@ export default class Game{
 
         if(newSelect){
             if(selected == newSelect){
+                selected.large = false
                 selected.render(this.size)
                 selected = null
                 return
             }
             if(selected){
+                selected.large = false
                 selected.render(this.size)
             }
             selected = newSelect
+            selected.large = true
             selected.enlarge(this.size)
         }
         else if(selected){
             selected.clear(this.size)
             selected.move(cellX, cellY)
+            selected.large = false
             selected.render(this.size)
             selected = null
 
-            this.randomBalls()
-            this.checkBallCrossings()
+            let points = this.checkBallCrossings()
+            this.score += points
+            if(points === 0){
+                this.randomBalls(this.nextColors)
+            }
         }
+        this.randomizeColors()
     }
  
-    
-    // BFS pathfinding function
-    bfsPathfinding(start: Point, target: Point, grid: (null | string | Ball)[][]): Point[] | null {
-        const queue: { position: Point; path: Point[] }[] = [
-            { position: start, path: [start] }
-        ];
-    
-        const directions = [
-            { dx: 1, dy: 0 },  // Right
-            { dx: 0, dy: 1 },  // Down
-            { dx: -1, dy: 0 }, // Left
-            { dx: 0, dy: -1 }  // Up
-        ];
 
-        const visited = new Set<string>(); // To track visited cells
-        visited.add(`${start.x},${start.y}`);
-    
-        while (queue.length > 0) {
-            const { position, path } = queue.shift()!;
-    
-            // If we reached the target, return the path
-            if (position.x === target.x && position.y === target.y) {
-                return path;
-            }
-    
-            // Explore neighbors
-            for (const { dx, dy } of directions) {
-                const newX = position.x + dx;
-                const newY = position.y + dy;
-                console.log(this.balls.find(e=>e.x==newX&&e.y==newY));
-                
-                // Check if the new position is within bounds and not visited
-                if (
-                    newX >= 0 && newX < 9 &&
-                    newY >= 0 && newY < 9 &&
-                    !visited.has(`${newX},${newY}`) &&
-                    // grid[newY][newX] == undefined // Ensure the cell is not an obstacle
-                    !(this.balls.find(e=>e.x==newX&&e.y==newY))
-                ) {
-                    console.log("chuj");
-                    
-                    visited.add(`${newX},${newY}`);
-                    queue.push({
-                        position: { x: newX, y: newY },
-                        path: [...path, { x: newX, y: newY }]
-                    });
-                }
-            }
-        }
-    
-        // If no path is found, return null
-        return null;
-    }
     
     private move(e: MouseEvent){
         const cellX = Math.floor(e.offsetX / this.size)
@@ -148,13 +108,14 @@ export default class Game{
             let start: Point = {x:selected.x, y:selected.y}
             let end: Point = {x:cellX, y:cellY}
             
-            let path = this.bfsPathfinding(start,end,Game.playfield.grid);
+            let path = this.bfsPathfinding(start,end);
 
             this.render()
             if(path){
                 path.forEach(e=>{
+                if(e.x == start.x && e.y == start.y) {return}
                 const ctx = this.canvas.getContext("2d")!
-                ctx.fillStyle = "red"
+                ctx.fillStyle = "rgba(255,0,0,0.4)"
                 ctx.fillRect(e.x*64+2,e.y*64+2,60,60)
             })
         }
@@ -184,6 +145,55 @@ export default class Game{
         
         
     }
+    /**
+     * 
+     * @param start A start point to begin path
+     * @param target Target point of the path
+     * @returns A path (list of points)
+     */
+        bfsPathfinding(start: Point, target: Point): Point[] | null {
+            const queue: { position: Point; path: Point[] }[] = [
+                { position: start, path: [start] }
+            ];
+        
+            const directions = [
+                { dx: 1, dy: 0 },
+                { dx: 0, dy: 1 },
+                { dx: -1, dy: 0 },
+                { dx: 0, dy: -1 }
+            ];
+    
+            const visited = new Set<string>();
+            visited.add(`${start.x},${start.y}`);
+        
+            while (queue.length > 0) {
+                const { position, path } = queue.shift()!;
+        
+                if (position.x === target.x && position.y === target.y) {
+                    return path;
+                }
+    
+                for (const { dx, dy } of directions) {
+                    const newX = position.x + dx;
+                    const newY = position.y + dy;
+                    console.log(this.balls.find(e=>e.x==newX&&e.y==newY));
+                    if (
+                        newX >= 0 && newX < 9 &&
+                        newY >= 0 && newY < 9 &&
+                        !visited.has(`${newX},${newY}`) &&
+                        !(this.balls.find(e=>e.x==newX&&e.y==newY))
+                    ) {
+                        
+                        visited.add(`${newX},${newY}`);
+                        queue.push({
+                            position: { x: newX, y: newY },
+                            path: [...path, { x: newX, y: newY }]
+                        });
+                    }
+                }
+            }
+            return null;
+        }
 
     private checkBallCrossings() {
         const directions = [
@@ -224,6 +234,13 @@ export default class Game{
         toRemove.forEach(b=>b.clear(this.size))
     
         return toRemove.size;
-      }
+    }
+
+    randomizeColors(){
+        this.nextColors = []
+        for(let i = 0;i<3;i++){
+            this.nextColors.push(randomizeColor())
+        }
+    }
         
 }
