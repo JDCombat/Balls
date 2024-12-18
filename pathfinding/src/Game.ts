@@ -31,6 +31,12 @@ export default class Game{
 
     public bestScore: number = Number(localStorage.getItem("best")) ?? 0
 
+    private currentPath: Point[]
+    
+    private previewContainer: HTMLDivElement = document.querySelector("#preview")
+
+    private previewArr: NodeListOf<HTMLDivElement> = document.querySelectorAll("#preview > div")
+
 
     /**
      * Starting game method
@@ -40,6 +46,8 @@ export default class Game{
         this.render()
         this.canvas.addEventListener("click", this.click.bind(this))
         this.canvas.addEventListener("mousemove", this.move.bind(this))
+        this.previewColors()
+        this.updateScores()
     }
     /**
      * A method for rendering the grid
@@ -67,6 +75,21 @@ export default class Game{
         
         const newSelect = this.balls.find(e=>e.x==cellX && e.y==cellY)
 
+        const directions = [
+            { dx: 1, dy: 0 },
+            { dx: 0, dy: 1 },
+            { dx: -1, dy: 0 },
+            { dx: 0, dy: -1 }
+        ];
+        // for(const {dx, dy} of directions){
+        //     const newX = newSelect.x + dx
+        //     const newY = newSelect.y + dy
+
+        //     if(
+        //         newX < 0 && newY
+        //     )
+        // }
+
         if(newSelect){
             if(selected == newSelect){
                 selected.large = false
@@ -83,6 +106,9 @@ export default class Game{
             selected.enlarge(this.size)
         }
         else if(selected){
+            if(!this.currentPath){
+                return
+            }
             selected.clear(this.size)
             selected.move(cellX, cellY)
             selected.large = false
@@ -94,8 +120,10 @@ export default class Game{
             if(points === 0){
                 this.randomBalls(this.nextColors)
             }
+            this.updateScores()
+            this.previewColors()
+            this.checkGame()
         }
-        this.randomizeColors()
     }
  
 
@@ -108,16 +136,16 @@ export default class Game{
             let start: Point = {x:selected.x, y:selected.y}
             let end: Point = {x:cellX, y:cellY}
             
-            let path = this.bfsPathfinding(start,end);
+            this.currentPath = this.bfsPathfinding(start,end);
 
             this.render()
-            if(path){
-                path.forEach(e=>{
-                if(e.x == start.x && e.y == start.y) {return}
+            if(this.currentPath){
+                this.currentPath.forEach(e=>{
                 const ctx = this.canvas.getContext("2d")!
                 ctx.fillStyle = "rgba(255,0,0,0.4)"
                 ctx.fillRect(e.x*64+2,e.y*64+2,60,60)
             })
+
         }
             
         }
@@ -135,7 +163,7 @@ export default class Game{
                 i--
                 continue
             }
-            const ball = new Ball(randX, randY, randomizeColor())
+            const ball = new Ball(randX, randY, color ? color[i] : randomizeColor())
             ball.render(this.size)
             Game.playfield.grid[randY][randX] = ball
             this.balls.push(ball)
@@ -176,7 +204,6 @@ export default class Game{
                 for (const { dx, dy } of directions) {
                     const newX = position.x + dx;
                     const newY = position.y + dy;
-                    console.log(this.balls.find(e=>e.x==newX&&e.y==newY));
                     if (
                         newX >= 0 && newX < 9 &&
                         newY >= 0 && newY < 9 &&
@@ -236,11 +263,26 @@ export default class Game{
         return toRemove.size;
     }
 
-    randomizeColors(){
+    previewColors(){
         this.nextColors = []
         for(let i = 0;i<3;i++){
             this.nextColors.push(randomizeColor())
+            this.previewArr[i].style.backgroundColor = this.nextColors[i]
         }
+    }
+
+    updateScores(){
+        if(this.score > this.bestScore){
+            this.bestScore = this.score
+            localStorage.setItem("best", ""+this.bestScore)
+        }
+        document.querySelector("#current").innerHTML = "Score: "+this.score
+        document.querySelector("#best").innerHTML = "Best score: "+this.bestScore
+        
+    }
+
+    checkGame(){
+        // for(let )
     }
         
 }

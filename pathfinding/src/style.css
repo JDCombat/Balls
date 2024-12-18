@@ -13,4 +13,15 @@ canvas{
     border: 2px solid black;
     border-left: 1px solid black;
     border-top: 1px solid black;
+    cursor: pointer;
+}
+#preview{ 
+    display: flex;
+    flex-wrap: wrap;
+    width: 150px;
+}
+.ball{
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
 }
