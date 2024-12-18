@@ -1,6 +1,7 @@
 import Ball from "./Ball";
-import { Color, randomizeColor } from "./Colors";
+import { IColor, randomizeColor } from "./IColor";
 import Grid from "./Grid";
+import IGame from "./IGame";
 import { Point } from "./IPoint";
 
 /**
@@ -10,7 +11,7 @@ let selected: Ball | null
 
 
 
-export default class Game{
+export default class Game implements IGame{
     public constructor(){}
 
     /**An array of existing balls */
@@ -25,17 +26,23 @@ export default class Game{
     /** A playfield matrix */
     static playfield: Grid = new Grid(9)
 
-    private nextColors: Color[] = []
+    /** An array containing a preview of colors for next round */
+    private nextColors: IColor[] = []
 
+    /** A variable containing current score */
     public score: number = 0
 
+    /** A variable containing best score */
     public bestScore: number = Number(localStorage.getItem("best")) ?? 0
 
+    /** A variable containing current path */
     private currentPath: Point[]
-    
-    private previewContainer: HTMLDivElement = document.querySelector("#preview")
 
     private previewArr: NodeListOf<HTMLDivElement> = document.querySelectorAll("#preview > div")
+
+    private disabled: boolean = false
+
+    private startTime: Date = new Date()
 
 
     /**
@@ -57,6 +64,7 @@ export default class Game{
         ctx.imageSmoothingEnabled = false
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
         Game.playfield.render()
+
         this.balls.forEach(e => {
             e.render(this.size)
         });
@@ -67,13 +75,17 @@ export default class Game{
      * @param e A mouse event object
      */
     private click(e: MouseEvent){
+        if(this.disabled){
+            return
+        }
+        this.checkGame()
         console.log(Math.floor(e.offsetX / 64), Math.floor(e.offsetY/64));
         const cellX = Math.floor(e.offsetX / this.size)
         const cellY = Math.floor(e.offsetY / this.size)
 
         console.log(selected);
         
-        const newSelect = this.balls.find(e=>e.x==cellX && e.y==cellY)
+        const newSelect = this.balls.find(e=>e.pos.x==cellX && e.pos.y==cellY)
 
         const directions = [
             { dx: 1, dy: 0 },
@@ -93,12 +105,14 @@ export default class Game{
         if(newSelect){
             if(selected == newSelect){
                 selected.large = false
+                selected.clear(this.size)
                 selected.render(this.size)
                 selected = null
                 return
             }
             if(selected){
                 selected.large = false
+                selected.clear(this.size)
                 selected.render(this.size)
             }
             selected = newSelect
@@ -109,20 +123,32 @@ export default class Game{
             if(!this.currentPath){
                 return
             }
+            const ctx = this.canvas.getContext("2d")
             selected.clear(this.size)
+            ctx.fillStyle = "rgba(255,0,0,0.4)"
+            ctx.fillRect(selected.pos.x*64,selected.pos.y*64,64,64)
             selected.move(cellX, cellY)
             selected.large = false
             selected.render(this.size)
             selected = null
 
-            let points = this.checkBallCrossings()
-            this.score += points
-            if(points === 0){
-                this.randomBalls(this.nextColors)
-            }
-            this.updateScores()
-            this.previewColors()
-            this.checkGame()
+            this.disabled = true
+            setTimeout(() => {
+                let points = this.checkBallCrossings()
+                this.score += points
+                if(points === 0){
+                    this.randomBalls(this.nextColors)
+                    this.previewColors()
+                }
+                this.updateScores()
+                if(points > 0){
+                }
+
+                this.currentPath = null
+                this.render()
+                this.disabled = false
+                this.checkGame()
+            }, 500);
         }
     }
  
@@ -133,20 +159,26 @@ export default class Game{
         const cellY = Math.floor(e.offsetY / this.size)
 
         if(selected){
-            let start: Point = {x:selected.x, y:selected.y}
+            let start: Point = {x:selected.pos.x, y:selected.pos.y}
             let end: Point = {x:cellX, y:cellY}
             
             this.currentPath = this.bfsPathfinding(start,end);
 
             this.render()
-            if(this.currentPath){
+            if(this.currentPath && this.currentPath.length > 1){
                 this.currentPath.forEach(e=>{
                 const ctx = this.canvas.getContext("2d")!
                 ctx.fillStyle = "rgba(255,0,0,0.4)"
+                if(e.x == start.x && e.y == start.y){
+                    selected.clear(this.size)
+                    ctx.fillRect(e.x*64+2,e.y*64+2,60,60)
+                    selected.render(this.size)
+                    return
+                }
                 ctx.fillRect(e.x*64+2,e.y*64+2,60,60)
-            })
+                })
+            }
 
-        }
             
         }
     }
@@ -155,15 +187,15 @@ export default class Game{
      * Generates balls on random locations with random colors
      *  @param color If not null an array of colors to generate new balls with
      */
-    private randomBalls(color?: Color[]){
+    private randomBalls(color?: IColor[]){
         for(let i = 0; i < 3; i++){
             const randX = Math.floor(Math.random()*9)
             const randY = Math.floor(Math.random()*9)
-            if(this.balls.find(e=>e.x == randX && e.y == randY)){
+            if(this.balls.find(e=>e.pos.x == randX && e.pos.y == randY)){
                 i--
                 continue
             }
-            const ball = new Ball(randX, randY, color ? color[i] : randomizeColor())
+            const ball = new Ball(randX, randY, color ? color[i].color : randomizeColor())
             ball.render(this.size)
             Game.playfield.grid[randY][randX] = ball
             this.balls.push(ball)
@@ -208,7 +240,7 @@ export default class Game{
                         newX >= 0 && newX < 9 &&
                         newY >= 0 && newY < 9 &&
                         !visited.has(`${newX},${newY}`) &&
-                        !(this.balls.find(e=>e.x==newX&&e.y==newY))
+                        !(this.balls.find(e=>e.pos.x==newX&&e.pos.y==newY))
                     ) {
                         
                         visited.add(`${newX},${newY}`);
@@ -235,11 +267,11 @@ export default class Game{
         for (const ball of this.balls) {
           for (const dir of directions) {
             const sequence: Ball[] = [ball];
-            let nx = ball.x + dir.dx;
-            let ny = ball.y + dir.dy;
+            let nx = ball.pos.x + dir.dx;
+            let ny = ball.pos.y + dir.dy;
     
             while (nx >= 0 && nx < 9 && ny >= 0 && ny < 9) {
-              const nextBall = this.balls.find(b => b.x === nx && b.y === ny && b.color === ball.color);
+              const nextBall = this.balls.find(b => b.pos.x === nx && b.pos.y === ny && b.color.color === ball.color.color);
               
               if (nextBall) {
                 sequence.push(nextBall);
@@ -266,8 +298,8 @@ export default class Game{
     previewColors(){
         this.nextColors = []
         for(let i = 0;i<3;i++){
-            this.nextColors.push(randomizeColor())
-            this.previewArr[i].style.backgroundColor = this.nextColors[i]
+            this.nextColors.push({color: randomizeColor()})
+            this.previewArr[i].style.backgroundColor = this.nextColors[i].color
         }
     }
 
@@ -282,7 +314,12 @@ export default class Game{
     }
 
     checkGame(){
-        // for(let )
+        console.log(Game.playfield.grid.flat().filter(e=>e!=null).length);
+        if(Game.playfield.grid.flat().filter(e=>e!=null).length > 78){
+            this.disabled = true
+            let time = new Date(Date.now() - this.startTime.getTime() - 60*60*1000).toLocaleTimeString("pl-PL", {hour:"numeric",minute:"numeric",second:"numeric"})
+            alert("Koniec gry, uzyskałeś " + this.score + " punktów w " + time)
+        }
     }
         
 }
