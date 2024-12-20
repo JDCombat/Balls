@@ -7,7 +7,10 @@ body{
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 canvas{
     border: 2px solid black;
@@ -18,7 +21,8 @@ canvas{
 #preview{ 
     display: flex;
     flex-wrap: wrap;
-    width: 150px;
+    width: 180px;
+    gap: 5px;
 }
 .ball{
     width: 48px;

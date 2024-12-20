@@ -1,9 +1,18 @@
 import Ball from "./Ball";
 
+/**
+ * @module Grid
+ * A class representing a grid of balls
+ */
 export default class Grid{
+    /**A matrix containing balls */
     grid: Ball[][] =[]
 
-    constructor(size:number){
+    /**
+     * A constructor creating a new grid object
+     * @param size Size of the grid
+     */
+    public constructor(size:number){
         this.grid = Array.from(Array(size), () => Array(size).fill(undefined))
     }
     /**

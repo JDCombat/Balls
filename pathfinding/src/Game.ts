@@ -9,8 +9,10 @@ import { Point } from "./IPoint";
  */
 let selected: Ball | null
 
-
-
+/**
+ * @module Game
+ * A class representing a game
+ */
 export default class Game implements IGame{
     public constructor(){}
 
@@ -38,10 +40,13 @@ export default class Game implements IGame{
     /** A variable containing current path */
     private currentPath: Point[]
 
+    /** A variable containing a preview of colors divs */
     private previewArr: NodeListOf<HTMLDivElement> = document.querySelectorAll("#preview > div")
 
+    /** A variable containing a disabled state of the game */
     private disabled: boolean = false
 
+    /** A variable containing a start time of the game */
     private startTime: Date = new Date()
 
 
@@ -87,20 +92,9 @@ export default class Game implements IGame{
         
         const newSelect = this.balls.find(e=>e.pos.x==cellX && e.pos.y==cellY)
 
-        const directions = [
-            { dx: 1, dy: 0 },
-            { dx: 0, dy: 1 },
-            { dx: -1, dy: 0 },
-            { dx: 0, dy: -1 }
-        ];
-        // for(const {dx, dy} of directions){
-        //     const newX = newSelect.x + dx
-        //     const newY = newSelect.y + dy
-
-        //     if(
-        //         newX < 0 && newY
-        //     )
-        // }
+        if(newSelect && !newSelect.canMove){
+            return
+        }
 
         if(newSelect){
             if(selected == newSelect){
@@ -126,7 +120,7 @@ export default class Game implements IGame{
             const ctx = this.canvas.getContext("2d")
             selected.clear(this.size)
             ctx.fillStyle = "rgba(255,0,0,0.4)"
-            ctx.fillRect(selected.pos.x*64,selected.pos.y*64,64,64)
+            ctx.fillRect(selected.pos.x*this.size,selected.pos.y*this.size,this.size,this.size)
             selected.move(cellX, cellY)
             selected.large = false
             selected.render(this.size)
@@ -138,22 +132,24 @@ export default class Game implements IGame{
                 this.score += points
                 if(points === 0){
                     this.randomBalls(this.nextColors)
+                    this.checkBallCrossings()
                     this.previewColors()
                 }
                 this.updateScores()
-                if(points > 0){
-                }
 
                 this.currentPath = null
                 this.render()
                 this.disabled = false
+                this.canMove()
                 this.checkGame()
             }, 500);
         }
     }
- 
 
-    
+    /**
+     * A method for handling mouse move event
+     * @param e A mouse event object
+     */
     private move(e: MouseEvent){
         const cellX = Math.floor(e.offsetX / this.size)
         const cellY = Math.floor(e.offsetY / this.size)
@@ -171,15 +167,13 @@ export default class Game implements IGame{
                 ctx.fillStyle = "rgba(255,0,0,0.4)"
                 if(e.x == start.x && e.y == start.y){
                     selected.clear(this.size)
-                    ctx.fillRect(e.x*64+2,e.y*64+2,60,60)
+                    ctx.fillRect(e.x*this.size+2,e.y*this.size+2,this.size - 4,this.size - 4)
                     selected.render(this.size)
                     return
                 }
-                ctx.fillRect(e.x*64+2,e.y*64+2,60,60)
+                ctx.fillRect(e.x*this.size+2,e.y*this.size+2,this.size - 4,this.size - 4)
                 })
             }
-
-            
         }
     }
 
@@ -189,8 +183,8 @@ export default class Game implements IGame{
      */
     private randomBalls(color?: IColor[]){
         for(let i = 0; i < 3; i++){
-            const randX = Math.floor(Math.random()*9)
-            const randY = Math.floor(Math.random()*9)
+            const randX = Math.floor(Math.random()*Game.playfield.grid.length)
+            const randY = Math.floor(Math.random()*Game.playfield.grid.length)
             if(this.balls.find(e=>e.pos.x == randX && e.pos.y == randY)){
                 i--
                 continue
@@ -206,12 +200,12 @@ export default class Game implements IGame{
         
     }
     /**
-     * 
+     * A function for pathfinding using BFS algorithm
      * @param start A start point to begin path
      * @param target Target point of the path
      * @returns A path (list of points)
      */
-        bfsPathfinding(start: Point, target: Point): Point[] | null {
+        private bfsPathfinding(start: Point, target: Point): Point[] | null {
             const queue: { position: Point; path: Point[] }[] = [
                 { position: start, path: [start] }
             ];
@@ -237,8 +231,8 @@ export default class Game implements IGame{
                     const newX = position.x + dx;
                     const newY = position.y + dy;
                     if (
-                        newX >= 0 && newX < 9 &&
-                        newY >= 0 && newY < 9 &&
+                        newX >= 0 && newX < Game.playfield.grid.length &&
+                        newY >= 0 && newY < Game.playfield.grid.length &&
                         !visited.has(`${newX},${newY}`) &&
                         !(this.balls.find(e=>e.pos.x==newX&&e.pos.y==newY))
                     ) {
@@ -253,7 +247,10 @@ export default class Game implements IGame{
             }
             return null;
         }
-
+    /**
+     * Method for checking if there are any balls to remove
+     * @returns Number of removed balls
+     */
     private checkBallCrossings() {
         const directions = [
           { dx: 1, dy: 0 },
@@ -294,8 +291,10 @@ export default class Game implements IGame{
     
         return toRemove.size;
     }
-
-    previewColors(){
+    /**
+     * A method for randomizing colors for next round
+     */
+    private previewColors(){
         this.nextColors = []
         for(let i = 0;i<3;i++){
             this.nextColors.push({color: randomizeColor()})
@@ -303,7 +302,10 @@ export default class Game implements IGame{
         }
     }
 
-    updateScores(){
+    /**
+     * A method for updating scores
+     */
+    private updateScores(){
         if(this.score > this.bestScore){
             this.bestScore = this.score
             localStorage.setItem("best", ""+this.bestScore)
@@ -312,14 +314,35 @@ export default class Game implements IGame{
         document.querySelector("#best").innerHTML = "Best score: "+this.bestScore
         
     }
+    /**
+     * A method for checking if the game is over
+     */
+    private checkGame(){
 
-    checkGame(){
-        console.log(Game.playfield.grid.flat().filter(e=>e!=null).length);
-        if(Game.playfield.grid.flat().filter(e=>e!=null).length > 78){
+        if(this.balls.length > 77){
             this.disabled = true
-            let time = new Date(Date.now() - this.startTime.getTime() - 60*60*1000).toLocaleTimeString("pl-PL", {hour:"numeric",minute:"numeric",second:"numeric"})
-            alert("Koniec gry, uzyskałeś " + this.score + " punktów w " + time)
+            let time = new Date(Date.now() - this.startTime.getTime() - 60*60*1000)
+            setTimeout(() => {
+                alert("Koniec gry, uzyskałeś " + this.score + " punktów w " + time.getHours() + " godzin " + time.getMinutes() + " minut " + time.getSeconds() + " sekund")
+            }, 500);
         }
+    }
+    /**
+     * A method for checking if the ball can move
+     */
+    private canMove(){
+        this.balls.forEach(e=>{
+                if(
+                    (e.pos.x > 0 && !this.balls.find(b=>b.pos.x == e.pos.x - 1 && b.pos.y == e.pos.y)) ||
+                    (e.pos.x < 8 && !this.balls.find(b=>b.pos.x == e.pos.x + 1 && b.pos.y == e.pos.y)) ||
+                    (e.pos.y > 0 && !this.balls.find(b=>b.pos.x == e.pos.x && b.pos.y == e.pos.y - 1)) ||
+                    (e.pos.y < 8 && !this.balls.find(b=>b.pos.x == e.pos.x && b.pos.y == e.pos.y + 1))
+                ){
+                    e.canMove = true
+                }else{
+                    e.canMove = false
+                }
+        })
     }
         
 }

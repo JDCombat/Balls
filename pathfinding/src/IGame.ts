@@ -1,5 +1,4 @@
 import Ball from "./Ball";
-import { Point } from "./IPoint";
 
 /**
  * An interface for class Game
@@ -16,4 +15,5 @@ export default interface IGame{
     /** A variable containing best score */
     bestScore: number
 
+    startGame(): void
 }
